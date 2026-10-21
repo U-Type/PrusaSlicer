@@ -201,6 +201,11 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     entries[id++].Set(wxACCEL_CTRL, WXK_NUMPAD6, wxID_HIGHEST + 6);
 #endif // _WIN32
 
+    // MOD: Also accept the original Save As shortcut on Windows and Linux.
+    // The menu advertises Ctrl+Shift+S, while Ctrl+Alt+S continues to work.
+    if (wxGetApp().is_editor() && m_save_project_as_menu_item != nullptr)
+        entries[id++].Set(wxACCEL_CTRL | wxACCEL_ALT, 'S', m_save_project_as_menu_item->GetId());
+
     wxAcceleratorTable accel(id, entries);
     SetAcceleratorTable(accel);
 
@@ -806,7 +811,8 @@ void MainFrame::create_preset_tabs()
     add_created_tab(new TabPrinter(m_tabpanel), wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF ? "printer" : "sla_printer");
     
     m_printables_webview = new PrintablesWebViewPanel(m_tabpanel);
-    add_printables_webview_tab();
+    // MOD: Keep the Printables panel available to account integrations, but do not add its UI tab.
+    m_printables_webview->Hide();
    
     m_connect_webview = new ConnectWebViewPanel(m_tabpanel);
     m_printer_webview = new PrinterWebViewPanel(m_tabpanel, L"");
@@ -848,7 +854,8 @@ void MainFrame::add_connect_webview_tab()
     // insert "Connect" tab to position next to "Printer" tab
     // order of tabs: Plater - Print Settings - Filaments - Printers - Prusa Connect - Prusa Link
 
-    int n = m_tabpanel->FindPage(m_printables_webview) + 1;
+    // MOD: Printables is no longer a visible tab. Insert Connect after Printer Settings.
+    int n = m_tabpanel->FindPage(wxGetApp().get_tab(Preset::TYPE_PRINTER)) + 1;
     wxWindow* page = m_connect_webview;
     const wxString text(L"Prusa Connect");
     const std::string bmp_name = "";
@@ -1484,11 +1491,8 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(fileMenu, wxID_ANY, _L("&Save Project") + "\tCtrl+S", _L("Save current project file"),
             [this](wxCommandEvent&) { save_project(); }, "save", nullptr,
             [this](){return m_plater != nullptr && can_save(); }, this);
-#ifdef __APPLE__
-        append_menu_item(fileMenu, wxID_ANY, _L("Save Project &as") + dots + "\tCtrl+Shift+S", _L("Save current project file as"),
-#else
-        append_menu_item(fileMenu, wxID_ANY, _L("Save Project &as") + dots + "\tCtrl+Alt+S", _L("Save current project file as"),
-#endif // __APPLE__
+        // MOD: Standard Save As shortcut; the legacy Ctrl+Alt+S is registered above.
+        m_save_project_as_menu_item = append_menu_item(fileMenu, wxID_ANY, _L("Save Project &as") + dots + "\tCtrl+Shift+S", _L("Save current project file as"),
             [this](wxCommandEvent&) { save_project_as(); }, "save", nullptr,
             [this](){return m_plater != nullptr && can_save_as(); }, this);
 
