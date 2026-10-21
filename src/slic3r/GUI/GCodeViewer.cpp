@@ -55,6 +55,15 @@ namespace Slic3r {
 namespace GUI {
 
 // MOD: Stable keys for each individual preview visibility switch.
+static_assert(libvgcode::GCODE_EXTRUSION_ROLES_COUNT == 15,
+    "Update the persisted role key list when libvgcode roles change.");
+#if VGCODE_ENABLE_COG_AND_TOOL_MARKERS
+static_assert(libvgcode::OPTION_TYPES_COUNT == 11,
+    "Update the persisted option key list when libvgcode options change.");
+#else
+static_assert(libvgcode::OPTION_TYPES_COUNT == 9,
+    "Update the persisted option key list when libvgcode options change.");
+#endif
 static const std::array<const char*, libvgcode::GCODE_EXTRUSION_ROLES_COUNT> s_preview_role_keys{{
     "preview_role_none",
     "preview_role_perimeter",

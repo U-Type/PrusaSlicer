@@ -10,7 +10,7 @@ All custom features are marked with `MOD:` comments, grouped into focused commit
 | --- | --- | --- |
 | Save As: Ctrl+Shift+S plus legacy Ctrl+Alt+S on Windows/Linux | `8c3ca145`, `b3b227ec` | `MainFrame.hpp/.cpp` |
 | Hide settings Printables tab | `b3b227ec` | `MainFrame.cpp` (panel remains instantiated for account API compatibility; Prusa Connect remains) |
-| Default travels, seam markers, Feature Type legend | `a5997576`, `0bf1fede` | `Settings.hpp`, `GLCanvas3D.cpp` |
+| Saved preview visualization states (replaces forced-on Travel/Seam defaults) | `25bf2244` | `GCodeViewer.cpp/.hpp`, `Settings.hpp`, `GUI_Preview.cpp` |
 | Front seam: mirrored Rear, negative Y | `6851b5a9` | `PrintConfig.hpp/.cpp`, `GCode/SeamRear.hpp/.cpp`, `GCode/SeamPlacer.cpp`; integration test |
 | Force clockwise perimeters | `0f26d052` | New **per-object** Boolean, applies to CLOSED perimeter loops (includes hole loops), does not redefine winding of open paths |
 | Rear/Front skirt and brim seam positions | `3ea9630a` | `GCode/ExtrusionOrder.cpp` biases closed-loop starts using their own bounding boxes; only if all objects in print share chosen side |
@@ -22,7 +22,7 @@ All custom features are marked with `MOD:` comments, grouped into focused commit
 1. **Build and launch** the application in a development configuration. No local C++ build has been executed when these commits were authored.
 2. **Keyboard**: verify Ctrl+Shift+S, Ctrl+Alt+S, Ctrl+S, and menu-state gating on Windows. macOS original Ctrl+Shift+S remains.
 3. **Settings**: verify Printables absent and Prusa Connect / printer settings / account login still work; verify settings-dedicated-window and integrated modes.
-4. **Preview**: verify fresh launch, import, reslice, project switching, Feature Type legend, and travels/seams toggles. User toggles should remain operative.
+4. **Preview**: verify that individual Feature Type roles, Travel, Wipe, Retract, Deretract, Seam and other icon toggles, plus legend-window visibility, each retain their own state after app restart, reslicing and project switching. Verify both the unsliced preview and final G-code preview. Unset settings must retain native defaults.
 5. **Front/Rear geometry**: slice a cylinder and a concave shape with both choices; compare first/last endpoints against positive/negative Y.
 6. **Skirt/brim**: slice with 0, small, and large skirt distances and multiple skirts, with single object and multiple objects (same/different seam preferences). Closed brim loops are biased to the chosen side. **Open brim extrusions are left unchanged** because they have no rotatable seam and should not be disrupted by this update.
 7. **Concentric top/bottom**: compare classic and Arachne for several separated islands and shapes with holes, changing `seam_position` and `prefer_clockwise_movements`, ensuring path endpoints remain near correct Y side and no new open-path connections.

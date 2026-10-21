@@ -180,7 +180,7 @@ public:
                                "Open paths have no winding direction; infill/skirt/brim are unaffected.");
         content->Add(m_clockwise, 0, wxALL, 12);
         add_text("Default off. Affects this Print Settings preset and can be overridden per object.");
-        add_text("Automatically enabled modifications", true);
+        add_text("Additional enhancements", true);
         add_text("Painted seam placement favors the center of the painted stripe.\n"
                  "The preview legend and every visualization remember their last on/off state between sessions.\n"
                  "Ctrl+Shift+S also saves a project as a new file.\n"
