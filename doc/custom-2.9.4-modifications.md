@@ -49,3 +49,8 @@ Conflicts are expected because upstream C++ APIs and G-code generation may chang
 ## Original option
 
 The upstream printer-level setting **Prefer clockwise movements** exists separately and remains supported. The new **Force clockwise perimeters** is an object-level override for closed perimeter loops, default OFF.
+
+
+### Fourth settings tab: Modifications
+
+The former Printables position now hosts a dedicated Modifications page, following Print, Filament and Printer Settings (fourth settings tab, fifth tab including Plater). The sole custom slicing checkbox, `force_clockwise_perimeters`, has been moved from Print Settings; the same print-preset option remains available to object-level overrides. The page also includes a standard seam position selector (Random, Nearest, Aligned, Rear, Front) synchronized with the Print Settings option, a Print Settings navigation button for saving the preset, and descriptions of always-on custom functionality. The new panel is deliberately not a second `TabPrint`: it modifies the existing print-preset config through `Tab::load_config` to preserve dirty state and propagation. Not yet compiled or verified on Windows.

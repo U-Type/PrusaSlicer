@@ -21,6 +21,11 @@
 #include <wx/progdlg.h>
 #include <wx/tooltip.h>
 #include <wx/accel.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/scrolwin.h>
+#include <wx/stattext.h>
+#include <wx/button.h>
 //#include <wx/glcanvas.h>
 #include <wx/filename.h>
 #include <wx/debug.h>
@@ -138,6 +143,109 @@ static wxIcon main_frame_icon(GUI_App::EAppMode app_mode)
     return wxIcon(Slic3r::var(app_mode == GUI_App::EAppMode::Editor ? "PrusaSlicer_128px.png" : "PrusaSlicer-gcodeviewer_128px.png"), wxBITMAP_TYPE_PNG);
 #endif // _WIN32
 }
+
+// MOD: A separate page, not a second TabPrint; keep one canonical preset editor.
+class ModificationsPanel final : public wxPanel
+{
+public:
+    explicit ModificationsPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
+    {
+        auto* outer = new wxBoxSizer(wxVERTICAL);
+        auto* scrolled = new wxScrolledWindow(this, wxID_ANY);
+        auto* content = new wxBoxSizer(wxVERTICAL);
+        scrolled->SetScrollRate(0, 12);
+
+        auto add_text = [scrolled, content](const wxString& text, bool bold = false) {
+            auto* label = new wxStaticText(scrolled, wxID_ANY, text);
+            if (bold) {
+                wxFont font = label->GetFont();
+                font.SetWeight(wxFONTWEIGHT_BOLD);
+                label->SetFont(font);
+            }
+            label->Wrap(700);
+            content->Add(label, 0, wxLEFT | wxRIGHT | wxTOP, 12);
+            return label;
+        };
+
+        add_text("Custom PrusaSlicer Modifications", true);
+        m_preset_name = add_text("");
+        add_text("Seam position", true);
+        m_seam = new wxChoice(scrolled, wxID_ANY);
+        for (const char* label : {"Random", "Nearest", "Aligned", "Rear", "Front"})
+            m_seam->Append(wxString::FromUTF8(label));
+        content->Add(m_seam, 0, wxLEFT | wxRIGHT | wxTOP, 12);
+        add_text("Front and Rear also guide eligible skirt/brim and top/bottom concentric starts.");
+        m_clockwise = new wxCheckBox(scrolled, wxID_ANY, "Force clockwise perimeters");
+        m_clockwise->SetToolTip("Make closed inner and outer perimeter loops print clockwise. "
+                               "Open paths have no winding direction; infill/skirt/brim are unaffected.");
+        content->Add(m_clockwise, 0, wxALL, 12);
+        add_text("Default off. Affects this Print Settings preset and can be overridden per object.");
+        add_text("Automatically enabled modifications", true);
+        add_text("Painted seam placement favors the center of the painted stripe.\n"
+                 "Feature Type legend, travels and seam markers start enabled in preview.\n"
+                 "Ctrl+Shift+S also saves a project as a new file.\n"
+                 "The Printables tab has been replaced by this page.");
+        add_text("Changes to these controls are part of your Print Settings preset. "
+                 "Save that preset to keep them across projects.");
+        auto* go_to_print = new wxButton(scrolled, wxID_ANY, "Open Print Settings to save preset");
+        content->Add(go_to_print, 0, wxALL, 12);
+
+        scrolled->SetSizer(content);
+        outer->Add(scrolled, 1, wxEXPAND);
+        SetSizer(outer);
+
+        m_clockwise->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent&) {
+            if (m_refreshing) return;
+            auto* print_tab = wxGetApp().get_tab(Preset::TYPE_PRINT);
+            if (!print_tab || !print_tab->get_config()) return;
+            DynamicPrintConfig updated(*print_tab->get_config());
+            updated.set_key_value("force_clockwise_perimeters", new ConfigOptionBool(m_clockwise->GetValue()));
+            print_tab->load_config(updated);
+            refresh_from_preset();
+        });
+        m_seam->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+            if (m_refreshing) return;
+            int selected = m_seam->GetSelection();
+            if (selected < 0 || selected >= 5) return;
+            auto* print_tab = wxGetApp().get_tab(Preset::TYPE_PRINT);
+            if (!print_tab || !print_tab->get_config()) return;
+            static const SeamPosition seam_modes[5] = {spRandom, spNearest, spAligned, spRear, spFront};
+            DynamicPrintConfig updated(*print_tab->get_config());
+            updated.set_key_value("seam_position", new ConfigOptionEnum<SeamPosition>(seam_modes[selected]));
+            print_tab->load_config(updated);
+            refresh_from_preset();
+        });
+        go_to_print->Bind(wxEVT_BUTTON, [](wxCommandEvent&) {
+            wxGetApp().mainframe->select_tab(wxGetApp().get_tab(Preset::TYPE_PRINT));
+        });
+        refresh_from_preset();
+    }
+
+    void refresh_from_preset()
+    {
+        auto* print_tab = wxGetApp().get_tab(Preset::TYPE_PRINT);
+        if (!print_tab || !print_tab->get_config()) return;
+        const auto& config = *print_tab->get_config();
+        m_refreshing = true;
+        if (const auto* seam = config.option<ConfigOptionEnum<SeamPosition>>("seam_position"))
+            m_seam->SetSelection(static_cast<int>(seam->value));
+        if (config.has("force_clockwise_perimeters"))
+            m_clockwise->SetValue(config.opt_bool("force_clockwise_perimeters"));
+        bool fff = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF;
+        m_seam->Enable(fff);
+        m_clockwise->Enable(fff);
+        m_preset_name->SetLabel(fff ?
+            wxString("Active print preset: ") + from_u8(wxGetApp().preset_bundle->prints.get_selected_preset().name) :
+            wxString("These controls apply to FFF print settings."));
+        m_refreshing = false;
+    }
+
+private:
+    wxChoice* m_seam{nullptr};
+    wxCheckBox* m_clockwise{nullptr};
+    wxStaticText* m_preset_name{nullptr};
+    bool m_refreshing{false};
+};
 
 MainFrame::MainFrame(const int font_point_size) :
 DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE, "mainframe", font_point_size),
@@ -707,6 +815,14 @@ void MainFrame::init_tabpanel()
         if (panel == nullptr || (tab != nullptr && !tab->supports_printer_technology(m_plater->printer_technology())))
             return;
 
+        // MOD: This panel edits the existing Print Settings preset. Unlike an
+        // embedded WebView it is a regular settings tab; remember the selection.
+        if (panel == m_modifications_tab) {
+            m_modifications_tab->refresh_from_preset();
+            m_last_selected_tab = m_tabpanel->GetSelection();
+            return;
+        }
+
         // temporary fix - WebViewPanel is not inheriting from Tab -> would jump to select Plater
         if (panel && !tab)
             return;
@@ -813,7 +929,11 @@ void MainFrame::create_preset_tabs()
     m_printables_webview = new PrintablesWebViewPanel(m_tabpanel);
     // MOD: Keep the Printables panel available to account integrations, but do not add its UI tab.
     m_printables_webview->Hide();
-   
+
+    // Fourth settings tab: Print, Filament, Printer, Modifications.
+    m_modifications_tab = new ModificationsPanel(m_tabpanel);
+    m_tabpanel->AddNewPage(m_modifications_tab, "Modifications", "cog");
+
     m_connect_webview = new ConnectWebViewPanel(m_tabpanel);
     m_printer_webview = new PrinterWebViewPanel(m_tabpanel, L"");
    
@@ -1299,6 +1419,8 @@ void MainFrame::on_sys_color_changed()
     for (Tab* tab : wxGetApp().tabs_list)
         tab->sys_color_changed();
 
+    if (m_modifications_tab)
+        wxGetApp().UpdateDarkUI(m_modifications_tab);
     if (m_printables_webview)
         m_printables_webview->sys_color_changed();
     if (m_connect_webview)
