@@ -4,6 +4,7 @@
 
 #include "libslic3r/Config.hpp"
 #include "libslic3r/PrintConfig.hpp"
+#include "libslic3r/PresetBundle.hpp"
 
 #include <LocalesUtils.hpp>
 #include <cereal/types/polymorphic.hpp>
@@ -483,4 +484,19 @@ SCENARIO("DynamicPrintConfig serialization", "[Config]") {
             REQUIRE(cfg == cfg2);
         }
     }
+}
+
+// MOD: GUI Print Settings builds its option groups from the print preset's
+// DynamicPrintConfig. A config definition alone is not sufficient: the key
+// must also be present in Preset::print_options() to avoid startup failure.
+TEST_CASE("Clockwise perimeter checkbox is registered in print presets", "[Config][Mod]") {
+    PresetBundle bundle;
+    const auto& defaults = bundle.prints.default_preset().config;
+    REQUIRE(defaults.has("force_clockwise_perimeters"));
+    CHECK_FALSE(defaults.opt_bool("force_clockwise_perimeters"));
+
+    auto& edited = bundle.prints.get_edited_preset().config;
+    REQUIRE(edited.has("force_clockwise_perimeters"));
+    edited.set_key_value("force_clockwise_perimeters", new ConfigOptionBool(true));
+    CHECK(edited.opt_bool("force_clockwise_perimeters"));
 }
