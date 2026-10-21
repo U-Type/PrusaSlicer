@@ -2961,8 +2961,9 @@ void GLCanvas3D::load_preview(const std::vector<std::string>& str_tool_colors, c
     libvgcode::GCodeInputData data = libvgcode::convert(*print, str_tool_colors, str_color_print_colors, color_print_values,
         static_cast<size_t>(wxGetApp().extruders_edited_cnt()));
 
-    // send data to the viewer
-    m_gcode_viewer.enable_legend(false);
+    // MOD: Keep the Feature Type legend visible in the pre-G-code preview too.
+    // The final G-code preview already enables it separately.
+    m_gcode_viewer.enable_legend(true);
     m_gcode_viewer.enable_view_type_cache_write(false);
     m_gcode_viewer.enable_view_type_cache_load(false);
     m_gcode_viewer.set_view_type(libvgcode::EViewType::FeatureType);
