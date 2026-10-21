@@ -2856,9 +2856,9 @@ void PrintConfigDef::init_fff_params()
     def = this->add("force_clockwise_perimeters", coBool);
     def->label = L("Force clockwise perimeters");
     def->category = L("Layers and Perimeters");
-    def->tooltip = L("Force all closed perimeter loops of this object to be extruded clockwise, "
-                     "including inner walls and holes. Open perimeter paths do not have a winding direction. "
-                     "Does not change infill, skirt, or brim direction.");
+    def->tooltip = L("Force all closed perimeter loops of this object (including inner walls "
+                     "and holes) and top/bottom Concentric solid infill loops clockwise. "
+                     "Open paths, other infill patterns, skirt and brim are unaffected.");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool(false));
 

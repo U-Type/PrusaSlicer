@@ -547,12 +547,17 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
         params.use_arachne                = (perimeter_generator == PerimeterGeneratorType::Arachne && surface_fill.params.pattern == ipConcentric) || surface_fill.params.pattern == ipEnsuring;
         params.layer_height               = layerm.layer()->height;
         params.prefer_clockwise_movements = this->object()->print()->config().prefer_clockwise_movements;
-        // MOD: Concentric top and bottom surfaces use the selected Front/Rear seam
-        // side, instead of an arbitrary origin / nearest-previous-point split.
+        // MOD: Match front/rear perimeter starts and object-specific clockwise
+        // overrides on Concentric top/bottom solid surfaces only.
         if (surface_fill.params.pattern == ipConcentric &&
+            surface_fill.surface.is_solid() &&
             (surface_fill.surface.is_top() || surface_fill.surface.is_bottom())) {
             const SeamPosition side = this->object()->config().seam_position.value;
             params.concentric_seam_y_direction = side == spRear ? 1 : (side == spFront ? -1 : 0);
+            params.force_clockwise_concentric = this->object()->config().force_clockwise_perimeters.value;
+            // Do not let the infill path planner flip directed concentric
+            // strokes: reversing moves the starting point to the seam gap.
+            params.prefer_clockwise_movements |= params.force_clockwise_concentric;
         }
 
         for (ExPolygon &expoly : surface_fill.expolygons) {

@@ -88,6 +88,9 @@ struct FillParams
 
     // For infills that produce closed loops to force printing those loops clockwise.
     bool        prefer_clockwise_movements { false };
+    // MOD: Per-object direction override for top/bottom Concentric solid loops.
+    // Do not apply it to other infill patterns or non-top/bottom surfaces.
+    bool        force_clockwise_concentric { false };
     // MOD: -1 = Front (minimum Y), +1 = Rear (maximum Y), 0 = unchanged.
     // Set only for top / bottom concentric surfaces, not other infill.
     int         concentric_seam_y_direction { 0 };

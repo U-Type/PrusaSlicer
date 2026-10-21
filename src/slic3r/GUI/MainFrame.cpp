@@ -174,17 +174,20 @@ public:
         for (const char* label : {"Random", "Nearest", "Aligned", "Rear", "Front"})
             m_seam->Append(wxString::FromUTF8(label));
         content->Add(m_seam, 0, wxLEFT | wxRIGHT | wxTOP, 12);
-        add_text("Front and Rear also guide eligible skirt/brim and top/bottom concentric starts.");
+        add_text(wxString::FromUTF8(u8"\u2022 Front and Rear also guide skirt/brim and top/bottom Concentric seam starts."));
         m_clockwise = new wxCheckBox(scrolled, wxID_ANY, "Force clockwise perimeters");
-        m_clockwise->SetToolTip("Make closed inner and outer perimeter loops print clockwise. "
-                               "Open paths have no winding direction; infill/skirt/brim are unaffected.");
+        m_clockwise->SetToolTip("Make closed inner and outer perimeter loops, and top/bottom "
+                               "Concentric solid infill loops, print clockwise. Other infill "
+                               "patterns, skirt and brim are unaffected.");
         content->Add(m_clockwise, 0, wxALL, 12);
         add_text("Default off. Affects this Print Settings preset and can be overridden per object.");
         add_text("Additional enhancements", true);
-        add_text("Painted seam placement favors the center of the painted stripe.\n"
-                 "The preview legend and every visualization remember their last on/off state between sessions.\n"
-                 "Ctrl+Shift+S also saves a project as a new file.\n"
-                 "The Printables tab has been replaced by this page.");
+        add_text(wxString::FromUTF8(
+                 u8"\u2022 Painted seam placement favors the center of the painted stripe.\n"
+                 u8"\u2022 Top/bottom Concentric infill follows Rear/Front seams and clockwise overrides.\n"
+                 u8"\u2022 The preview legend and every visualization remember their last on/off state.\n"
+                 u8"\u2022 Ctrl+Shift+S also saves a project as a new file.\n"
+                 u8"\u2022 The Printables tab has been replaced by this page."));
         add_text("Changes to these controls are part of your Print Settings preset. "
                  "Save that preset to keep them across projects.");
         auto* go_to_print = new wxButton(scrolled, wxID_ANY, "Open Print Settings to save preset");
