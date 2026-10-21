@@ -107,6 +107,10 @@ if (-not $PackageOnly) {
         '-G', 'Visual Studio 17 2022',
         '-A', 'x64',
         "-DCMAKE_PREFIX_PATH=$prefix",
+        # MOD: Only Release dependencies were built (DEP_DEBUG=OFF).
+        # The bundled FindOpenVDB.cmake requires a Debug OpenVDB library if
+        # CMAKE_CONFIGURATION_TYPES contains Debug, even for Release builds.
+        '-DCMAKE_CONFIGURATION_TYPES=Release',
         '-DSLIC3R_BUILD_TESTS=ON'
     )
 
