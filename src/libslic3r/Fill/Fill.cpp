@@ -559,6 +559,23 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
             // strokes: reversing moves the starting point to the seam gap.
             params.prefer_clockwise_movements |= params.force_clockwise_concentric;
         }
+        // MOD: Internal-solid areas can be silently remapped to FillEnsuring
+        // (ipEnsuring) above, even when a Concentric top/bottom pattern was
+        // selected. Their Arachne ring-like gap fills were responsible for the
+        // left-side, counterclockwise 'Solid infill' paths seen in layer 131.
+        // Apply the same optional seam/winding constraints to those closed
+        // gap-fill rings, but leave open ensuring strokes unchanged.
+        if (surface_fill.params.pattern == ipEnsuring &&
+            surface_fill.surface.is_solid()) {
+            const PrintRegionConfig &region_config = layerm.region().config();
+            if (region_config.top_fill_pattern.value == ipConcentric ||
+                region_config.bottom_fill_pattern.value == ipConcentric) {
+                const SeamPosition side = this->object()->config().seam_position.value;
+                params.concentric_seam_y_direction = side == spRear ? 1 : (side == spFront ? -1 : 0);
+                params.force_clockwise_concentric = this->object()->config().force_clockwise_perimeters.value;
+                params.prefer_clockwise_movements |= params.force_clockwise_concentric;
+            }
+        }
 
         for (ExPolygon &expoly : surface_fill.expolygons) {
 			// Spacing is modified by the filler to indicate adjustments. Reset it for each expolygon.
