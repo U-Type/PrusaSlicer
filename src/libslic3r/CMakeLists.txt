@@ -600,6 +600,26 @@ endif()
 target_link_libraries(libslic3r_cgal PRIVATE ${_cgal_tgt} libigl)
 target_link_libraries(libslic3r_cgal PUBLIC semver admesh localesutils)
 
+# MOD: On MSVC, CGAL's header-only imported target may omit the Windows
+# GMP/MPFR import libraries. The bundled MSVC dependencies install these
+# separately, and their __imp__ symbols are required by CGAL operations.
+# Resolve from the selected dependency prefix rather than assuming a
+# particular architecture or hard-coding the checkout location.
+if (MSVC)
+    find_library(SLIC3R_GMP_IMPORT_LIBRARY NAMES libgmp-10
+        HINTS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES lib)
+    find_library(SLIC3R_MPFR_IMPORT_LIBRARY NAMES libmpfr-4
+        HINTS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES lib)
+    if (NOT SLIC3R_GMP_IMPORT_LIBRARY OR NOT SLIC3R_MPFR_IMPORT_LIBRARY)
+        message(FATAL_ERROR
+            "Windows GMP/MPFR import libraries are missing. Expected "
+            "libgmp-10.lib and libmpfr-4.lib in the selected dependency prefix.")
+    endif()
+    target_link_libraries(libslic3r_cgal PRIVATE
+        "${SLIC3R_GMP_IMPORT_LIBRARY}"
+        "${SLIC3R_MPFR_IMPORT_LIBRARY}")
+endif()
+
 if (MSVC AND "${CMAKE_SIZEOF_VOID_P}" STREQUAL "4") # 32 bit MSVC workaround
     target_compile_definitions(libslic3r_cgal PRIVATE CGAL_DO_NOT_USE_MPZF)
 endif ()
