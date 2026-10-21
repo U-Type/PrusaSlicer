@@ -551,6 +551,33 @@ std::vector<ExtruderExtrusions> get_extrusions(
 ) {
     unsigned toolchange_number{0};
 
+    // MOD: A global skirt / merged brim can surround more than one print object.
+    // Only force an adhesion seam if all objects agree on the Rear / Front
+    // preference. Otherwise retain the existing shortest-travel behavior.
+    std::optional<SeamPosition> adhesion_seam_side;
+    if (!print.objects().empty()) {
+        const SeamPosition side = print.objects().front()->config().seam_position.value;
+        if ((side == spRear || side == spFront) &&
+            std::all_of(print.objects().begin(), print.objects().end(),
+                [side](const PrintObject *obj) { return obj->config().seam_position.value == side; })) {
+            adhesion_seam_side = side;
+        }
+    }
+
+    // SmoothPathGenerator normally chooses a skirt / brim seam nearest to the
+    // previous nozzle position. Supplying an outboard preference point instead
+    // lets its existing projection/splitting logic select the intended side,
+    // even with a substantial gap between the model and its adhesion loops.
+    const auto adhesion_loop_target = [&adhesion_seam_side](const ExtrusionLoop &loop) -> std::optional<InstancePoint> {
+        if (!adhesion_seam_side)
+            return std::nullopt;
+        const BoundingBox box = loop.polygon().bounding_box();
+        const coord_t mid_x = box.min.x() + (box.max.x() - box.min.x()) / 2;
+        const coord_t offset = scaled<coord_t>(20.);
+        return InstancePoint{Point{mid_x,
+            *adhesion_seam_side == spRear ? box.max.y() + offset : box.min.y() - offset}};
+    };
+
     std::vector<ExtruderExtrusions> extrusions;
     for (const unsigned int extruder_id : layer_tools.extruders)
     {
@@ -580,6 +607,10 @@ std::vector<ExtruderExtrusions> get_extrusions(
                 }
                 const ExtrusionEntityReference entity{*print.skirt().entities[i], reverse};
                 std::optional<InstancePoint> last_position{get_instance_point(previous_position, {0, 0})};
+                // MOD: Position closed skirt seams by their own rear/front boundary.
+                if (const auto *loop = dynamic_cast<const ExtrusionLoop *>(print.skirt().entities[i]))
+                    if (const auto preferred = adhesion_loop_target(*loop))
+                        last_position = *preferred;
                 auto [path, _]{smooth_path(nullptr, nullptr, entity, extruder_id, last_position)};
                 previous_position = get_gcode_point(last_position, {0, 0});
                 extruder_extrusions.skirt.emplace_back(i, std::move(path));
@@ -599,6 +630,11 @@ std::vector<ExtruderExtrusions> get_extrusions(
                 const ExtrusionEntityReference entity_reference{*entity, reverse};
 
                 std::optional<InstancePoint> last_position{get_instance_point(previous_position, {0, 0})};
+                // MOD: Brim loops follow the same side preference; open brim
+                // strokes remain oriented by the original path planner.
+                if (const auto *loop = dynamic_cast<const ExtrusionLoop *>(entity))
+                    if (const auto preferred = adhesion_loop_target(*loop))
+                        last_position = *preferred;
                 auto [path, _]{smooth_path(nullptr, nullptr, entity_reference, extruder_id, last_position)};
                 previous_position = get_gcode_point(last_position, {0, 0});
                 extruder_extrusions.brim.push_back({std::move(path), is_loop});
