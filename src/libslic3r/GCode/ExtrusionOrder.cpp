@@ -127,7 +127,11 @@ std::vector<Perimeter> extract_perimeter_extrusions(
                 bool reverse_loop{false};
                 if (auto loop = dynamic_cast<const ExtrusionLoop *>(ee)) {
                     const bool is_hole = loop->is_clockwise();
-                    reverse_loop = print.config().prefer_clockwise_movements ? !is_hole : is_hole;
+                    // MOD: Force clockwise looping for this object while preserving the
+                    // existing printer-level preference as a fallback.
+                    const bool clockwise = print.config().prefer_clockwise_movements.value ||
+                                           layer.object()->config().force_clockwise_perimeters.value;
+                    reverse_loop = clockwise ? !is_hole : is_hole;
                 }
                 auto [path, wipe_offset]{smooth_path(&layer, &region, ExtrusionEntityReference{*ee, reverse_loop}, extruder_id, last_position)};
                 previous_position = get_gcode_point(last_position, offset);

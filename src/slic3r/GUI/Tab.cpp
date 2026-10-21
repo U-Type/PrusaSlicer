@@ -1476,6 +1476,8 @@ void TabPrint::build()
 
         optgroup = page->new_optgroup(L("Advanced"));
         optgroup->append_single_option_line("seam_position", category_path + "seam-position");
+        // MOD: Per-object override of the extrusion direction for all closed perimeter loops.
+        optgroup->append_single_option_line("force_clockwise_perimeters");
         optgroup->append_single_option_line("seam_gap_distance", category_path + "seam-gap-distance");
         optgroup->append_single_option_line("staggered_inner_seams", category_path + "staggered-inner-seams");
 

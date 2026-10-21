@@ -911,6 +911,7 @@ bool PrintObject::invalidate_state_by_config_options(
             steps.emplace_back(posSlice);
         } else if (
                opt_key == "seam_position"
+            || opt_key == "force_clockwise_perimeters"
             || opt_key == "scarf_seam_placement"
             || opt_key == "scarf_seam_only_on_smooth"
             || opt_key == "scarf_seam_start_height"

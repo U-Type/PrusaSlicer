@@ -2851,6 +2851,17 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloatOrPercent{ 15., true });
 
+    // MOD: Unlike the printer-level prefer_clockwise_movements setting, this
+    // option may be overridden independently for each print object.
+    def = this->add("force_clockwise_perimeters", coBool);
+    def->label = L("Force clockwise perimeters");
+    def->category = L("Layers and Perimeters");
+    def->tooltip = L("Force all closed perimeter loops of this object to be extruded clockwise, "
+                     "including inner walls and holes. Open perimeter paths do not have a winding direction. "
+                     "Does not change infill, skirt, or brim direction.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
     def = this->add("seam_position", coEnum);
     def->label = L("Seam position");
     def->category = L("Layers and Perimeters");
