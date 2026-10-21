@@ -48,7 +48,9 @@ TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise
                 params.density = 1.0f;
                 params.dont_adjust = true;
                 params.force_clockwise_concentric = true;
-                params.prefer_clockwise_movements = true;
+                // Cover both printer-wide preference states; the per-object
+                // force option must dominate either state.
+                params.prefer_clockwise_movements = (side > 0);
                 params.concentric_seam_y_direction = side;
 
                 const Surface surface(surface_type, geometry);

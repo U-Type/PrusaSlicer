@@ -59,3 +59,12 @@ The former Printables position now hosts a dedicated Modifications page, followi
 ### Feature Type legend visibility persistence
 
 Every individual Feature Type extrusion-role visibility state and every preview icon visualization switch now persists between sessions through PrusaSlicer's AppConfig. This includes Travel, Wipe, Retract, Deretract, Seams, Tool changes, Color changes, Print pauses, Custom G-codes, Center of gravity, Shells, and Tool marker, plus the legend window itself. Unset preferences retain the native defaults rather than forcing Travel/Seams on. Both pre-G-code and sliced G-code previews use the remembered states. The separate Modifications tab text describes the behavior. Changes have not yet been compiled or tested on Windows.
+
+
+### Concentric solid infill: accurate Rear/Front seams and forced clockwise direction
+
+- The Modifications tab now uses an actual bulleted list for the modifications, and the tooltips cover Concentric solid infill.
+- For **top and bottom solid surfaces using the Concentric pattern**, each closed infill ring's seam is projected to the closest point on the edge facing the chosen Rear (+Y) or Front (-Y) side. This can place the seam in the middle of a long straight segment, rather than at one of its corner vertices. The existing loop-clipping gap is retained.
+- The **Force clockwise perimeters** option now applies to the same top/bottom Concentric solid rings (including rings around holes) for Classic and Arachne generation. Direction is established before cutting/opening the seam; paths remain oriented during their subsequent ordered infill execution.
+- Other infill patterns, sparse/internally generated infill, and open extrusion lines retain the existing behavior. Geometry, obstacle avoidance, extrusion order and separate disconnected islands can still require some travel between perimeters and infill; this adjustment aligns seam positions rather than merging separate paths.
+- Added a focused regression test on square top/bottom surfaces with and without holes, both front/rear sides and printer-level direction preferences. **Windows build and runtime tests are still required**, particularly for Arachne variable-width loops.
