@@ -171,8 +171,15 @@ if (SLIC3R_GUI)
         target_link_libraries(PrusaSlicer PRIVATE -ldl)
     endif ()
     if (WIN32)
-        find_library(PSAPI_LIB NAMES Psapi)
-        target_link_libraries(PrusaSlicer PRIVATE ${PSAPI_LIB})
+        # MOD: Psapi is supplied by the Windows SDK and is on MSVC's
+        # implicit linker search path. CMake find_library() does not
+        # always search those implicit directories when using a Visual
+        # Studio generator, resulting in PSAPI_LIB-NOTFOUND.
+        if (MSVC)
+            target_link_libraries(PrusaSlicer PRIVATE Psapi.lib)
+        else ()
+            target_link_libraries(PrusaSlicer PRIVATE psapi)
+        endif ()
     endif ()
 endif ()
 
