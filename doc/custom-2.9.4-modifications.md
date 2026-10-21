@@ -54,3 +54,8 @@ The upstream printer-level setting **Prefer clockwise movements** exists separat
 ### Fourth settings tab: Modifications
 
 The former Printables position now hosts a dedicated Modifications page, following Print, Filament and Printer Settings (fourth settings tab, fifth tab including Plater). The sole custom slicing checkbox, `force_clockwise_perimeters`, has been moved from Print Settings; the same print-preset option remains available to object-level overrides. The page also includes a standard seam position selector (Random, Nearest, Aligned, Rear, Front) synchronized with the Print Settings option, a Print Settings navigation button for saving the preset, and descriptions of always-on custom functionality. The new panel is deliberately not a second `TabPrint`: it modifies the existing print-preset config through `Tab::load_config` to preserve dirty state and propagation. Not yet compiled or verified on Windows.
+
+
+### Feature Type legend visibility persistence
+
+Every individual Feature Type extrusion-role visibility state and every preview icon visualization switch now persists between sessions through PrusaSlicer's AppConfig. This includes Travel, Wipe, Retract, Deretract, Seams, Tool changes, Color changes, Print pauses, Custom G-codes, Center of gravity, Shells, and Tool marker, plus the legend window itself. Unset preferences retain the native defaults rather than forcing Travel/Seams on. Both pre-G-code and sliced G-code previews use the remembered states. The separate Modifications tab text describes the behavior. Changes have not yet been compiled or tested on Windows.

@@ -54,6 +54,54 @@
 namespace Slic3r {
 namespace GUI {
 
+// MOD: Stable keys for each individual preview visibility switch.
+static const std::array<const char*, libvgcode::GCODE_EXTRUSION_ROLES_COUNT> s_preview_role_keys{{
+    "preview_role_none",
+    "preview_role_perimeter",
+    "preview_role_external_perimeter",
+    "preview_role_overhang_perimeter",
+    "preview_role_internal_infill",
+    "preview_role_solid_infill",
+    "preview_role_top_solid_infill",
+    "preview_role_ironing",
+    "preview_role_bridge_infill",
+    "preview_role_gap_fill",
+    "preview_role_skirt",
+    "preview_role_support_material",
+    "preview_role_support_material_interface",
+    "preview_role_wipe_tower",
+    "preview_role_custom"
+}};
+static const std::array<const char*, libvgcode::OPTION_TYPES_COUNT> s_preview_option_keys{{
+    "preview_visual_travels",
+    "preview_visual_wipes",
+    "preview_visual_retractions",
+    "preview_visual_unretractions",
+    "preview_visual_seams",
+    "preview_visual_tool_changes",
+    "preview_visual_color_changes",
+    "preview_visual_pause_prints",
+    "preview_visual_custom_gcodes",
+#if VGCODE_ENABLE_COG_AND_TOOL_MARKERS
+    "preview_visual_center_of_gravity",
+    "preview_visual_tool_marker",
+#endif
+}};
+static const char* preview_role_key(libvgcode::EGCodeExtrusionRole role)
+{
+    return s_preview_role_keys.at(static_cast<size_t>(role));
+}
+static const char* preview_option_key(libvgcode::EOptionType option)
+{
+    return s_preview_option_keys.at(static_cast<size_t>(option));
+}
+static void save_preview_visibility(const char* key, bool visible)
+{
+    if (auto* config = wxGetApp().app_config)
+        config->set(key, visible ? "1" : "0");
+}
+
+
 #if VGCODE_ENABLE_COG_AND_TOOL_MARKERS
 void GCodeViewer::COG::render(bool fixed_screen_size)
 #else
@@ -956,6 +1004,47 @@ void GCodeViewer::SequentialView::render(float legend_height, const libvgcode::V
 GCodeViewer::GCodeViewer()
 {
     m_shells.volumes.set_use_raycasters(false);
+
+    // MOD: Restore only saved choices, leaving the original defaults for
+    // users who have never touched a particular visualization.
+    const auto* config = wxGetApp().app_config;
+    if (config == nullptr)
+        return;
+
+    for (size_t i = 0; i < s_preview_role_keys.size(); ++i) {
+        const char* key = s_preview_role_keys[i];
+        if (!config->has(key))
+            continue;
+        const auto role = static_cast<libvgcode::EGCodeExtrusionRole>(i);
+        if (m_viewer.is_extrusion_role_visible(role) != config->get_bool(key))
+            m_viewer.toggle_extrusion_role_visibility(role);
+    }
+    for (size_t i = 0; i < s_preview_option_keys.size(); ++i) {
+        const char* key = s_preview_option_keys[i];
+        if (!config->has(key))
+            continue;
+        const auto option = static_cast<libvgcode::EOptionType>(i);
+        if (m_viewer.is_option_visible(option) != config->get_bool(key))
+            m_viewer.toggle_option_visibility(option);
+    }
+    if (config->has("preview_visual_shells"))
+        m_shells.visible = config->get_bool("preview_visual_shells");
+#if !VGCODE_ENABLE_COG_AND_TOOL_MARKERS
+    if (config->has("preview_visual_center_of_gravity"))
+        m_cog.set_visible(config->get_bool("preview_visual_center_of_gravity"));
+    if (config->has("preview_visual_tool_marker"))
+        m_sequential_view.marker.set_visible(config->get_bool("preview_visual_tool_marker"));
+#endif
+    if (config->has("preview_legend_visible"))
+        m_legend_visible = config->get_bool("preview_legend_visible");
+}
+
+void GCodeViewer::show_legend(bool show)
+{
+    if (m_legend_visible != show) {
+        m_legend_visible = show;
+        save_preview_visibility("preview_legend_visible", show);
+    }
 }
 
 void GCodeViewer::init()
@@ -2342,6 +2431,7 @@ void GCodeViewer::render_legend(float& legend_height)
         const libvgcode::Interval view_visible_range = m_viewer.get_view_visible_range();
         const libvgcode::Interval view_enabled_range = m_viewer.get_view_enabled_range();
         m_viewer.toggle_extrusion_role_visibility(role);
+        save_preview_visibility(preview_role_key(role), m_viewer.is_extrusion_role_visible(role));
         std::optional<int> view_visible_range_min;
         std::optional<int> view_visible_range_max;
         if (view_visible_range != view_enabled_range) {
@@ -2979,6 +3069,26 @@ void GCodeViewer::render_legend(float& legend_height)
             }
             }
 #endif // VGCODE_ENABLE_COG_AND_TOOL_MARKERS
+            // MOD: Persist both the libvgcode visualization switches and the
+            // separately implemented shell/marker toggles.
+            switch (type) {
+            case Preview::OptionType::Shells:
+                save_preview_visibility("preview_visual_shells", m_shells.visible);
+                break;
+#if !VGCODE_ENABLE_COG_AND_TOOL_MARKERS
+            case Preview::OptionType::CenterOfGravity:
+                save_preview_visibility("preview_visual_center_of_gravity", m_cog.is_visible());
+                break;
+            case Preview::OptionType::ToolMarker:
+                save_preview_visibility("preview_visual_tool_marker", m_sequential_view.marker.is_visible());
+                break;
+#endif
+            default: {
+                const auto option = libvgcode::convert(type);
+                save_preview_visibility(preview_option_key(option), m_viewer.is_option_visible(option));
+                break;
+            }
+            }
             std::optional<int> view_visible_range_min = keep_visible_range ? std::optional<int>{ static_cast<int>(view_visible_range[0]) } : std::nullopt;
             std::optional<int> view_visible_range_max = keep_visible_range ? std::optional<int>{ static_cast<int>(view_visible_range[1]) } : std::nullopt;
             wxGetApp().plater()->update_preview_moves_slider(view_visible_range_min, view_visible_range_max);

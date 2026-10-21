@@ -229,7 +229,7 @@ bool Preview::init(wxWindow* parent, Bed3D& bed, Model* model)
     m_canvas->set_config(m_config);
     m_canvas->set_model(model);
     m_canvas->set_process(m_process);
-    m_canvas->show_legend(true);
+    // MOD: Keep the legend visibility restored from application settings.
     m_canvas->enable_dynamic_background(true);
 
     create_sliders();

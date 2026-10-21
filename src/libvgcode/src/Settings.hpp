@@ -31,11 +31,11 @@ struct Settings
 		// Visibility maps
 		//
 		std::array<bool, std::size_t(EOptionType::COUNT)> options_visibility{
-			    true,  // MOD: show Travels by default
+			    false, // Travels: original default; load any saved preference
 				false, // Wipes
 				false, // Retractions
 				false, // Unretractions
-				true,  // MOD: show Seams by default
+				false, // Seams: original default; load any saved preference
 				false, // ToolChanges
 				false, // ColorChanges
 				false, // PausePrints

@@ -351,7 +351,7 @@ public:
     void set_layers_z_range(const std::array<unsigned int, 2>& layers_z_range);
 
     bool is_legend_shown() const { return m_legend_visible && m_legend_enabled; }
-    void show_legend(bool show) { m_legend_visible = show; }
+    void show_legend(bool show); // MOD: persist legend visibility
     void enable_legend(bool enable) { m_legend_enabled = enable; }
 
     void set_force_shells_visible(bool visible) { m_shells.force_visible = visible; }

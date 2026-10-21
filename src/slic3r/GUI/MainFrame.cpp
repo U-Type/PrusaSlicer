@@ -182,7 +182,7 @@ public:
         add_text("Default off. Affects this Print Settings preset and can be overridden per object.");
         add_text("Automatically enabled modifications", true);
         add_text("Painted seam placement favors the center of the painted stripe.\n"
-                 "Feature Type legend, travels and seam markers start enabled in preview.\n"
+                 "The preview legend and every visualization remember their last on/off state between sessions.\n"
                  "Ctrl+Shift+S also saves a project as a new file.\n"
                  "The Printables tab has been replaced by this page.");
         add_text("Changes to these controls are part of your Print Settings preset. "
