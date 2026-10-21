@@ -88,8 +88,9 @@ struct FillParams
 
     // For infills that produce closed loops to force printing those loops clockwise.
     bool        prefer_clockwise_movements { false };
-    // MOD: Per-object direction override for top/bottom Concentric solid loops.
-    // Do not apply it to other infill patterns or non-top/bottom surfaces.
+    // MOD: Per-object direction override for Concentric top/bottom solid
+    // loops and Arachne FillEnsuring closed rings when a top/bottom pattern
+    // is Concentric. Never apply to unrelated non-concentric infill strokes.
     bool        force_clockwise_concentric { false };
     // MOD: -1 = Front (minimum Y), +1 = Rear (maximum Y), 0 = unchanged.
     // Set only for top / bottom concentric surfaces, not other infill.

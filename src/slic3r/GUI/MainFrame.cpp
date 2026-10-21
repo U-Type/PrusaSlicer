@@ -174,17 +174,18 @@ public:
         for (const char* label : {"Random", "Nearest", "Aligned", "Rear", "Front"})
             m_seam->Append(wxString::FromUTF8(label));
         content->Add(m_seam, 0, wxLEFT | wxRIGHT | wxTOP, 12);
-        add_text(wxString::FromUTF8(u8"\u2022 Front and Rear also guide skirt/brim and top/bottom Concentric seam starts."));
+        add_text(wxString::FromUTF8(u8"\u2022 Front/Rear guide skirt, brim and Concentric solid-infill seam starts."));
         m_clockwise = new wxCheckBox(scrolled, wxID_ANY, "Force clockwise perimeters");
-        m_clockwise->SetToolTip("Make closed inner and outer perimeter loops, and top/bottom "
-                               "Concentric solid infill loops, print clockwise. Other infill "
-                               "patterns, skirt and brim are unaffected.");
+        m_clockwise->SetToolTip("Print closed inner/outer perimeters and Concentric-style solid-infill "
+                               "rings clockwise, including Arachne's internal-solid ensuring rings "
+                               "when a Concentric top or bottom pattern is selected. "
+                               "Other infill patterns, skirt and brim are unaffected.");
         content->Add(m_clockwise, 0, wxALL, 12);
         add_text("Default off. Affects this Print Settings preset and can be overridden per object.");
         add_text("Additional enhancements", true);
         add_text(wxString::FromUTF8(
                  u8"\u2022 Painted seam placement favors the center of the painted stripe.\n"
-                 u8"\u2022 Top/bottom Concentric infill follows Rear/Front seams and clockwise overrides.\n"
+                 u8"\u2022 Concentric top/bottom and internal-solid rings align to Front/Rear; clockwise overrides apply.\n"
                  u8"\u2022 The preview legend and every visualization remember their last on/off state.\n"
                  u8"\u2022 Ctrl+Shift+S also saves a project as a new file.\n"
                  u8"\u2022 The Printables tab has been replaced by this page."));
