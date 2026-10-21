@@ -134,7 +134,9 @@ if ($RunSeamTests) {
     if (-not (Test-Path -LiteralPath $testExe)) {
         throw "Seam test executable not found: $testExe"
     }
-    Invoke-Tool $testExe @('[Seams]')
+    # MOD: Include new Concentric seam/winding regression tests in the
+    # explicit opt-in seam test run, not just the older SeamPlacer tests.
+    Invoke-Tool $testExe @('[Seams],[Concentric]')
 }
 
 $required = @('prusa-slicer.exe', 'prusa-slicer-console.exe', 'prusa-gcodeviewer.exe', 'PrusaSlicer.dll', 'WebView2Loader.dll', 'libgmp-10.dll', 'libmpfr-4.dll')
