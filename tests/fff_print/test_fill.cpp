@@ -37,6 +37,7 @@ TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise
         for (bool has_hole : { false, true }) {
             const ExPolygon geometry = has_hole ? ExPolygon(outline, hole) : ExPolygon(outline);
             for (const int side : {-1, 1}) {
+              for (bool forced_clockwise : {false, true}) {
                 std::unique_ptr<Fill> fill(Fill::new_from_type("concentric"));
                 REQUIRE(fill != nullptr);
                 fill->angle = 0.0f;
@@ -47,9 +48,11 @@ TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise
                 FillParams params;
                 params.density = 1.0f;
                 params.dont_adjust = true;
-                params.force_clockwise_concentric = true;
-                // Cover both printer-wide preference states; the per-object
-                // force option must dominate either state.
+                // Seam placement must work both when clockwise is forced
+                // and when it is disabled (independent configuration choices).
+                params.force_clockwise_concentric = forced_clockwise;
+                // Cover both printer-wide preference states; when forced,
+                // the per-object force option must dominate either state.
                 params.prefer_clockwise_movements = (side > 0);
                 params.concentric_seam_y_direction = side;
 
@@ -71,8 +74,10 @@ TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise
 
                     // A clipped loop still has a well-defined winding:
                     // close the small seam gap for the signed area check.
-                    CHECK(Polygon::area(path.points) < 0.0);
+                    if (forced_clockwise)
+                        CHECK(Polygon::area(path.points) < 0.0);
                 }
+              }
             }
         }
     }
