@@ -131,8 +131,36 @@ static void mod_restore_ensuring_ring(ThickPolyline &line, coord_t spacing,
     line.clip_end(original_gap);
 }
 
+// Construct a printer-coordinate Rear/Front target from a local rotated
+// bounds. Unlike the closed-ring seam projection, this can also influence
+// ordering for interrupted, open FillEnsuring strokes.
+static Point mod_ensuring_target_for_bounds(const BoundingBox &bounds, int side, double rotation)
+{
+    const double c = std::cos(rotation);
+    const double sn = std::sin(rotation);
+    BoundingBox world;
+    for (const Point &p : {
+        bounds.min,
+        Point{bounds.min.x(), bounds.max.y()},
+        Point{bounds.max.x(), bounds.min.y()},
+        bounds.max
+    }) {
+        world.merge(Point{
+            coord_t(std::round(c * p.x() + sn * p.y())),
+            coord_t(std::round(-sn * p.x() + c * p.y()))});
+    }
+    const Point target{
+        world.min.x() + (world.max.x() - world.min.x()) / 2,
+        side > 0 ? world.max.y() + scaled<coord_t>(20.) :
+                   world.min.y() - scaled<coord_t>(20.)};
+    return Point{
+        coord_t(std::round(c * target.x() - sn * target.y())),
+        coord_t(std::round(sn * target.x() + c * target.y()))};
+}
+
 static Point mod_ensuring_target(const ThickPolyline &line, int side, double rotation)
 {
+    // Use the actual vertices for variable-width ring alignment.
     const double c = std::cos(rotation);
     const double sn = std::sin(rotation);
     BoundingBox world;
@@ -734,7 +762,16 @@ ThickPolylines make_fill_polylines(
                               thick_polylines.end());
     }
 
-    Algorithm::sort_paths(thick_polylines.begin(), thick_polylines.end(), bb.min, double(scaled_spacing) * 1.2, [](const ThickPolyline &tp) {
+    // MOD: For open ensuring strokes, no legal closed-loop seam exists.
+    // Still select the earliest path from the chosen rear/front boundary
+    // instead of always starting from the rotated area's lower-left corner.
+    // This is independent of the force-clockwise option and preserves path
+    // geometry and any existing connections.
+    Point sort_start = bb.min;
+    if (params.concentric_seam_y_direction != 0 && !thick_polylines.empty())
+        sort_start = mod_ensuring_target_for_bounds(
+            get_extents(thick_polylines), params.concentric_seam_y_direction, aligning_angle);
+    Algorithm::sort_paths(thick_polylines.begin(), thick_polylines.end(), sort_start, double(scaled_spacing) * 1.2, [](const ThickPolyline &tp) {
         Lines ls;
         Point prev = tp.first_point();
         for (size_t i = 1; i < tp.points.size(); i++) {
