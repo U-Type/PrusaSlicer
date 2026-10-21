@@ -89,6 +89,48 @@ static void mod_start_ensuring_ring_at(ThickPolyline &line, const Point &target)
 // MOD: Ensuring's polygons are rotated for line generation. Construct the
 // seam target in unrotated printer coordinates, then rotate it back into the
 // generator's local frame. Front always means minimum printer Y.
+// MOD: After sorting and joining, recenter the seam of an almost-closed
+// Concentric-like solid ring. An Arachne ring was clipped into an open path,
+// and the generic path sorter may have changed its first/last vertices. The
+// previous (early) seam selection cannot guarantee final output position.
+// Close ONLY the short existing seam gap, rotate the loop to a projected
+// Front/Rear edge position, and reopen it with the same gap length. This
+// leaves ordinary open ensuring lines untouched.
+static void mod_restore_ensuring_ring(ThickPolyline &line, coord_t spacing,
+                                     int side, bool force_clockwise)
+{
+    if (!mod_is_ensuring_ring(line, spacing))
+        return;
+
+    // Apply direction independently of seam relocation. The area sign is
+    // read from the actual post-sorting output geometry, not Arachne flags.
+    if (force_clockwise && Polygon::area(line.points) > 0.0)
+        line.reverse();
+
+    if (side == 0)
+        return;
+
+    const double original_gap = (line.first_point() - line.last_point()).cast<double>().norm();
+    if (original_gap <= 0.0)
+        return; // Already closed: avoid changing normal loop handling.
+
+    const BoundingBox bounds(line.points);
+    const Point target{
+        bounds.min.x() + (bounds.max.x() - bounds.min.x()) / 2,
+        side > 0 ? bounds.max.y() + scaled<coord_t>(20.) :
+                   bounds.min.y() - scaled<coord_t>(20.)};
+
+    // Add back the segment removed by the existing clip_end() call. Using
+    // endpoint widths maintains ThickPolyline's 2-widths-per-segment rule.
+    line.points.emplace_back(line.first_point());
+    const coordf_t last_width = line.width.back();
+    const coordf_t first_width = line.width.front();
+    line.width.emplace_back(last_width);
+    line.width.emplace_back(first_width);
+    mod_start_ensuring_ring_at(line, target);
+    line.clip_end(original_gap);
+}
+
 static Point mod_ensuring_target(const ThickPolyline &line, int side, double rotation)
 {
     const double c = std::cos(rotation);
@@ -734,16 +776,17 @@ ThickPolylines make_fill_polylines(
         thick_polylines = connected_thick_polylines;
     }
 
-    // MOD: The general path sorter can flip any open extrusion, including
-    // a loop with a deliberately clipped seam gap. Restore winding here.
-    if (preserve_concentric_rings && params.force_clockwise_concentric) {
-        for (ThickPolyline &line : thick_polylines) {
-            if (mod_is_ensuring_ring(line, scaled_spacing) &&
-                Polygon::area(line.points) > 0.0)
-                line.reverse();
-        }
-    }
     rotate_thick_polylines(thick_polylines, cos(-aligning_angle), sin(-aligning_angle));
+
+    // MOD: This final pass is in printer XY, after generic path sorting,
+    // optional inter-path connections, and reversal. The Front/Rear seam
+    // remains active irrespective of the force_clockwise_perimeters toggle.
+    if (preserve_concentric_rings) {
+        for (ThickPolyline &line : thick_polylines)
+            mod_restore_ensuring_ring(line, scaled_spacing,
+                                      params.concentric_seam_y_direction,
+                                      params.force_clockwise_concentric);
+    }
     return thick_polylines;
 }
 
