@@ -600,6 +600,11 @@ ThickPolylines make_fill_polylines(
         std::vector<EndPoint> connection_endpoints;
         connection_endpoints.reserve(thick_polylines.size() * 2);
         for (size_t pl_idx = 0; pl_idx < thick_polylines.size(); pl_idx++) {
+            // MOD: Preserve the intentional clipped seam of each complete
+            // concentric-like ring; do not bridge/reverse it into its neighbor.
+            if (preserve_concentric_rings &&
+                mod_is_ensuring_ring(thick_polylines[pl_idx], scaled_spacing))
+                continue;
             size_t current_idx = connection_endpoints.size();
             connection_endpoints.push_back({thick_polylines[pl_idx].first_point().cast<double>(), pl_idx, current_idx + 1, true});
             connection_endpoints.push_back({thick_polylines[pl_idx].last_point().cast<double>(), pl_idx, current_idx, false});
@@ -705,6 +710,14 @@ ThickPolylines make_fill_polylines(
                 ThickPolyline &tp   = thick_polylines[tp_idx];
                 ThickPolyline &tail = connected_thick_polylines.back();
                 Point          last = tail.last_point();
+                // MOD: Do not connect two neighboring ring seams into an
+                // alternating-direction spiral. Preserve closed-ring starts.
+                if (preserve_concentric_rings &&
+                    (mod_is_ensuring_ring(tp, scaled_spacing) ||
+                     mod_is_ensuring_ring(tail, scaled_spacing))) {
+                    connected_thick_polylines.push_back(tp);
+                    continue;
+                }
                 if ((last - tp.last_point()).cast<double>().squaredNorm() < (last - tp.first_point()).cast<double>().squaredNorm()) {
                     tp.reverse();
                 }
@@ -721,6 +734,15 @@ ThickPolylines make_fill_polylines(
         thick_polylines = connected_thick_polylines;
     }
 
+    // MOD: The general path sorter can flip any open extrusion, including
+    // a loop with a deliberately clipped seam gap. Restore winding here.
+    if (preserve_concentric_rings && params.force_clockwise_concentric) {
+        for (ThickPolyline &line : thick_polylines) {
+            if (mod_is_ensuring_ring(line, scaled_spacing) &&
+                Polygon::area(line.points) > 0.0)
+                line.reverse();
+        }
+    }
     rotate_thick_polylines(thick_polylines, cos(-aligning_angle), sin(-aligning_angle));
     return thick_polylines;
 }
