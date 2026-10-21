@@ -140,7 +140,7 @@ enum SupportMaterialInterfacePattern {
 };
 
 enum SeamPosition {
-    spRandom, spNearest, spAligned, spRear
+    spRandom, spNearest, spAligned, spRear, spFront
 };
 
 enum class ScarfSeamPlacement {

@@ -95,6 +95,11 @@ ObjectSeams precalculate_seams(
             result[print_object] = Rear::get_object_seams(std::move(layer_perimeters), params.rear_tolerance, params.rear_y_offset);
             break;
         }
+        case spFront: {
+            // MOD: Reuse the same point-selection rules with the Y direction reversed.
+            result[print_object] = Rear::get_object_seams(std::move(layer_perimeters), params.rear_tolerance, params.rear_y_offset, true);
+            break;
+        }
         case spRandom: {
             result[print_object] = Random::get_object_seams(std::move(layer_perimeters), params.random_seed);
             break;

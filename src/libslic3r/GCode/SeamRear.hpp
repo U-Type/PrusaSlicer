@@ -34,7 +34,8 @@ struct PerimeterLine
 std::vector<std::vector<SeamPerimeterChoice>> get_object_seams(
     std::vector<std::vector<Perimeters::BoundedPerimeter>> &&perimeters,
     const double rear_tolerance,
-    const double rear_y_offet
+    const double rear_y_offet,
+    bool front = false // MOD: mirror Rear behavior towards minimum Y for Front seams.
 );
 } // namespace Slic3r::Seams::Rear
 

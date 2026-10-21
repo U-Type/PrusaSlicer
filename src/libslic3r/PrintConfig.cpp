@@ -191,7 +191,8 @@ static const t_config_enum_values s_keys_map_SeamPosition {
     { "random",         spRandom },
     { "nearest",        spNearest },
     { "aligned",        spAligned },
-    { "rear",           spRear }
+    { "rear",           spRear },
+    { "front",          spFront }
 };
 
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SeamPosition)
@@ -2858,7 +2859,8 @@ void PrintConfigDef::init_fff_params()
         { "random",     L("Random") },
         { "nearest",    L("Nearest") },
         { "aligned",    L("Aligned") },
-        { "rear",       L("Rear") }
+        { "rear",       L("Rear") },
+        { "front",      L("Front") }
     });
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionEnum<SeamPosition>(spAligned));
