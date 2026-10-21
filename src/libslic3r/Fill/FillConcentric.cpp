@@ -59,7 +59,23 @@ void FillConcentric::_fill_surface_single(
     size_t iPathFirst = polylines_out.size();
     Point last_pos(0, 0);
     for (const Polygon &loop : loops) {
-        polylines_out.emplace_back(loop.split_at_index(nearest_point_index(loop.points, last_pos)));
+        // MOD: For top / bottom concentric infill, align each loop independently
+        // to its own back/front extreme. Do not chain its start to the previous
+        // path's end, as that drifts seams around offset and island boundaries.
+        if (params.concentric_seam_y_direction != 0) {
+            Polygon oriented_loop = loop;
+            // Apply the legacy clockwise preference before choosing the seam,
+            // so reversing an already clipped stroke cannot move its start.
+            if (params.prefer_clockwise_movements)
+                oriented_loop.reverse();
+            const BoundingBox box = oriented_loop.bounding_box();
+            const Point target{box.min.x() + (box.max.x() - box.min.x()) / 2,
+                params.concentric_seam_y_direction > 0 ? box.max.y() + scaled<coord_t>(20.) :
+                                                        box.min.y() - scaled<coord_t>(20.)};
+            polylines_out.emplace_back(oriented_loop.split_at_index(nearest_point_index(oriented_loop.points, target)));
+        } else {
+            polylines_out.emplace_back(loop.split_at_index(nearest_point_index(loop.points, last_pos)));
+        }
         last_pos = polylines_out.back().last_point();
     }
 
@@ -69,7 +85,7 @@ void FillConcentric::_fill_surface_single(
     for (size_t i = iPathFirst; i < polylines_out.size(); ++i) {
         polylines_out[i].clip_end(this->loop_clipping);
         if (polylines_out[i].is_valid()) {
-            if (params.prefer_clockwise_movements)
+            if (params.prefer_clockwise_movements && params.concentric_seam_y_direction == 0)
                 polylines_out[i].reverse();
 
             if (j < i)
@@ -127,7 +143,15 @@ void FillConcentric::_fill_surface_single(const FillParams              &params,
                 if (const bool extrusion_reverse = params.prefer_clockwise_movements ? !extrusion->is_contour() : extrusion->is_contour(); extrusion_reverse)
                     thick_polyline.reverse();
 
-                thick_polyline.start_at_index(nearest_point_index(thick_polyline.points, last_pos));
+                if (params.concentric_seam_y_direction != 0) {
+                    const BoundingBox box{thick_polyline.points};
+                    const Point target{box.min.x() + (box.max.x() - box.min.x()) / 2,
+                        params.concentric_seam_y_direction > 0 ? box.max.y() + scaled<coord_t>(20.) :
+                                                                box.min.y() - scaled<coord_t>(20.)};
+                    thick_polyline.start_at_index(nearest_point_index(thick_polyline.points, target));
+                } else {
+                    thick_polyline.start_at_index(nearest_point_index(thick_polyline.points, last_pos));
+                }
             }
 
             thick_polylines_out.emplace_back(std::move(thick_polyline));

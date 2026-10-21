@@ -88,6 +88,9 @@ struct FillParams
 
     // For infills that produce closed loops to force printing those loops clockwise.
     bool        prefer_clockwise_movements { false };
+    // MOD: -1 = Front (minimum Y), +1 = Rear (maximum Y), 0 = unchanged.
+    // Set only for top / bottom concentric surfaces, not other infill.
+    int         concentric_seam_y_direction { 0 };
 };
 static_assert(IsTriviallyCopyable<FillParams>::value, "FillParams class is not POD (and it should be - see constructor).");
 
