@@ -66,3 +66,20 @@ TEST_CASE_METHOD(Test::SeamsFixture, "Front seam mirrors rear side selection", "
         }
     }
 }
+
+TEST_CASE("Painted seam uses the midpoint of an enforced stripe", "[Seams][SeamPainting]") {
+    auto perimeter = RearTest::get_perimeter();
+    perimeter.point_types[2] = Perimeters::PointType::enforcer;
+    perimeter.point_types[3] = Perimeters::PointType::enforcer;
+    perimeter.point_types[4] = Perimeters::PointType::enforcer;
+
+    const SeamChoice at_left{4, 4, perimeter.positions[4]};
+    const SeamChoice at_right{2, 2, perimeter.positions[2]};
+    const SeamChoice centered_left = center_painted_seam(perimeter, at_left);
+    const SeamChoice centered_right = center_painted_seam(perimeter, at_right);
+    CHECK((centered_left.position - perimeter.positions[3]).norm() < 1e-6);
+    CHECK((centered_right.position - perimeter.positions[3]).norm() < 1e-6);
+
+    const SeamChoice unpainted{0, 0, perimeter.positions[0]};
+    CHECK((center_painted_seam(perimeter, unpainted).position - unpainted.position).norm() < 1e-6);
+}

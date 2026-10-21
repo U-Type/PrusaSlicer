@@ -51,6 +51,10 @@ SeamChoice choose_seam_point(
 
 std::optional<SeamChoice> choose_degenerate_seam_point(const Perimeters::Perimeter &perimeter);
 
+// MOD: Move a seam chosen within a painted enforcement region to the
+// arc-length midpoint of its nearest contiguous painted band.
+SeamChoice center_painted_seam(const Perimeters::Perimeter &perimeter, const SeamChoice &choice);
+
 } // namespace Slic3r::Seams
 
 #endif // libslic3r_SeamChoice_hpp_

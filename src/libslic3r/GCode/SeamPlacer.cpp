@@ -282,8 +282,17 @@ boost::variant<Point, Scarf::Scarf> finalize_seam_position(
     using Perimeters::offset_along_perimeter;
     using Perimeters::PointOnPerimeter;
 
+    // MOD: Keep the final seam in the center of the painted enforcement band,
+    // not at whichever painted-edge vertex the original ranking selected.
+    const bool painted_seam =
+        perimeter.point_types[seam_choice.previous_index] == Perimeters::PointType::enforcer ||
+        perimeter.point_types[seam_choice.next_index] == Perimeters::PointType::enforcer;
+    if (painted_seam)
+        seam_choice = Seams::center_painted_seam(perimeter, seam_choice);
+
     const Polygon loop_polygon{Geometry::to_polygon(loop)};
-    const bool do_staggering{staggered_inner_seams && loop.role() == ExtrusionRole::Perimeter};
+    // Explicit paint takes precedence over optional staggering of inner seams.
+    const bool do_staggering{!painted_seam && staggered_inner_seams && loop.role() == ExtrusionRole::Perimeter};
     const double loop_width{loop.paths.empty() ? 0.0 : loop.paths.front().width()};
 
     const ExPolygon perimeter_polygon{Geometry::scaled(perimeter.positions)};
