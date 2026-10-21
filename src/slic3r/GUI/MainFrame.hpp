@@ -95,6 +95,8 @@ class MainFrame : public DPIFrame
 
     wxMenuItem* m_menu_item_reslice_now { nullptr };
     wxMenuItem* m_menu_item_reload { nullptr };
+    // MOD: Keep the Save As menu item ID for the legacy Ctrl+Alt+S accelerator.
+    wxMenuItem* m_save_project_as_menu_item { nullptr };
     wxSizer*    m_main_sizer{ nullptr };
 
     size_t      m_last_selected_tab;
