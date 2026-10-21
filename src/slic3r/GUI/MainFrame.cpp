@@ -2401,6 +2401,10 @@ void MainFrame::on_presets_changed(SimpleEvent &event)
 
 void MainFrame::on_config_changed(DynamicPrintConfig* config) const
 {
+    // MOD: Keep the fourth settings tab synchronized with regular Print Settings
+    // edits and preset loads, without maintaining a second config object.
+    if (m_modifications_tab)
+        m_modifications_tab->refresh_from_preset();
     if (m_plater)
         m_plater->on_config_change(*config); // propagate config change events to the plater
 }
@@ -2423,6 +2427,8 @@ void MainFrame::add_to_recent_projects(const wxString& filename)
 void MainFrame::technology_changed()
 {
     PrinterTechnology pt = plater()->printer_technology();
+    if (m_modifications_tab)
+        m_modifications_tab->refresh_from_preset();
     m_tmp_top_bar->SetSettingsButtonTooltip(GetTooltipForSettingsButton(pt));
 
     if (!m_menubar)
