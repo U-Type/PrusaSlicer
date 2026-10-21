@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <queue>
+#include <limits>
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/ShortestPath.hpp"
@@ -33,6 +34,78 @@
 #include "libslic3r/Surface.hpp"
 
 namespace Slic3r {
+
+
+static bool mod_is_ensuring_ring(const ThickPolyline &line, coord_t spacing)
+{
+    if (line.points.size() < 6 || line.width.size() != (line.points.size() - 1) * 2)
+        return false;
+    const double spacing_sq = double(spacing) * double(spacing);
+    return (line.first_point() - line.last_point()).cast<double>().squaredNorm() <= spacing_sq &&
+           std::abs(Polygon::area(line.points)) > 16.0 * spacing_sq;
+}
+
+// MOD: Keep the variable extrusion widths when splitting an Arachne ring
+// in the middle of a segment, rather than snapping to a corner vertex.
+static void mod_start_ensuring_ring_at(ThickPolyline &line, const Point &target)
+{
+    if (line.points.size() < 4 || line.first_point() != line.last_point())
+        return;
+    const size_t segments = line.points.size() - 1;
+    size_t segment = 0;
+    Point position = line.points.front();
+    double best_sq = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < segments; ++i) {
+        Point projected;
+        const double d2 = line_alg::distance_to_squared(
+            Line(line.points[i], line.points[i + 1]), target, &projected);
+        if (d2 < best_sq) {
+            best_sq = d2;
+            segment = i;
+            position = projected;
+        }
+    }
+    const size_t next = segment + 1;
+    size_t index;
+    if (position == line.points[segment]) {
+        index = segment;
+    } else if (position == line.points[next]) {
+        index = next == segments ? 0 : next;
+    } else {
+        const double length = (line.points[next] - line.points[segment]).cast<double>().norm();
+        if (length <= 0.)
+            return;
+        const double fraction = std::min(1.0,
+            (position - line.points[segment]).cast<double>().norm() / length);
+        const coordf_t width = line.width[2 * segment] +
+            fraction * (line.width[2 * segment + 1] - line.width[2 * segment]);
+        line.points.insert(line.points.begin() + next, position);
+        line.width.insert(line.width.begin() + 2 * segment + 1, {width, width});
+        index = next;
+    }
+    line.start_at_index(static_cast<int>(index));
+}
+
+// MOD: Ensuring's polygons are rotated for line generation. Construct the
+// seam target in unrotated printer coordinates, then rotate it back into the
+// generator's local frame. Front always means minimum printer Y.
+static Point mod_ensuring_target(const ThickPolyline &line, int side, double rotation)
+{
+    const double c = std::cos(rotation);
+    const double sn = std::sin(rotation);
+    BoundingBox world;
+    for (const Point &p : line.points)
+        world.merge(Point{
+            coord_t(std::round(c * p.x() + sn * p.y())),
+            coord_t(std::round(-sn * p.x() + c * p.y()))});
+    const Point target{
+        world.min.x() + (world.max.x() - world.min.x()) / 2,
+        side > 0 ? world.max.y() + scaled<coord_t>(20.) :
+                   world.min.y() - scaled<coord_t>(20.)};
+    return Point{
+        coord_t(std::round(c * target.x() - sn * target.y())),
+        coord_t(std::round(sn * target.x() + c * target.y()))};
+}
 
 const constexpr coord_t MAX_LINE_LENGTH_TO_FILTER   = scaled<coord_t>(4.); // 4 mm.
 const constexpr size_t  MAX_SKIPS_ALLOWED           = 2; // Skip means propagation through long line.
@@ -289,6 +362,8 @@ ThickPolylines make_fill_polylines(
     };
 
     const coord_t           scaled_spacing                      = scaled<coord_t>(fill->spacing);
+    const bool preserve_concentric_rings =
+        params.concentric_seam_y_direction != 0 || params.force_clockwise_concentric;
     double                  distance_limit_reconnection         = 2.0 * double(scaled_spacing);
     double                  squared_distance_limit_reconnection = distance_limit_reconnection * distance_limit_reconnection;
     Polygons                filled_area                         = to_polygons(surface->expolygon);
@@ -478,11 +553,22 @@ ThickPolylines make_fill_polylines(
 
                     ThickPolyline thick_polyline = Arachne::to_thick_polyline(*extrusion);
                     if (extrusion->is_closed) {
-                        // Arachne produces contour with clockwise orientation and holes with counterclockwise orientation.
-                        if (const bool extrusion_reverse = params.prefer_clockwise_movements ? !extrusion->is_contour() : extrusion->is_contour(); extrusion_reverse)
+                        // MOD: The internal-solid Arachne rings in FillEnsuring
+                        // also obey front/rear seam positions and object-local
+                        // clockwise overrides when Concentric is selected.
+                        if (preserve_concentric_rings && params.force_clockwise_concentric) {
+                            if (Polygon(thick_polyline.points).is_counter_clockwise())
+                                thick_polyline.reverse();
+                        } else if (const bool extrusion_reverse =
+                                params.prefer_clockwise_movements ? !extrusion->is_contour() : extrusion->is_contour();
+                                extrusion_reverse) {
                             thick_polyline.reverse();
-
-                        thick_polyline.start_at_index(nearest_point_index(thick_polyline.points, ex_bb.min));
+                        }
+                        if (preserve_concentric_rings && params.concentric_seam_y_direction != 0)
+                            mod_start_ensuring_ring_at(thick_polyline,
+                                mod_ensuring_target(thick_polyline, params.concentric_seam_y_direction, aligning_angle));
+                        else
+                            thick_polyline.start_at_index(nearest_point_index(thick_polyline.points, ex_bb.min));
                         thick_polyline.clip_end(scaled_spacing * 0.5);
                     }
 
