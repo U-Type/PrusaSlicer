@@ -69,7 +69,7 @@ if (-not $PackageOnly) {
     if (-not (Test-Path -LiteralPath $vswhere)) {
         throw 'Visual Studio vswhere.exe not found. Install Visual Studio 2022 with Desktop development with C++.'
     }
-    $vs = & $vswhere '-version' '[17.0,18.0)' '-latest' '-requires' 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64' '-property' 'installationPath'
+    $vs = & $vswhere '-version' '[17.0,18.0)' '-latest' '-products' '*' '-requires' 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64' '-property' 'installationPath'
     if (-not $vs) {
         throw 'Visual Studio 2022 with MSVC v143 C++ tools was not found. Use Visual Studio Installer.'
     }
