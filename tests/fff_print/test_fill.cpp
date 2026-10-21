@@ -7,6 +7,7 @@
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Flow.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
 #include "libslic3r/Layer.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/Geometry/ConvexHull.hpp"
@@ -20,6 +21,62 @@ using namespace Slic3r;
 using namespace std::literals;
 
 bool test_if_solid_surface_filled(const ExPolygon& expolygon, double flow_spacing, double angle = 0, double density = 1.0);
+
+TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise", "[Fill][Mod][Concentric]") {
+    // Square corners are deliberately far from the midpoint of each side:
+    // the old nearest-vertex implementation selected a corner seam.
+    const Points outline = {
+        Point::new_scale(0., 0.), Point::new_scale(42., 0.),
+        Point::new_scale(42., 42.), Point::new_scale(0., 42.)
+    };
+    const Points hole = {
+        Point::new_scale(13., 13.), Point::new_scale(13., 29.),
+        Point::new_scale(29., 29.), Point::new_scale(29., 13.)
+    };
+    for (const auto surface_type : { stTop, stBottom }) {
+        for (bool has_hole : { false, true }) {
+            const ExPolygon geometry = has_hole ? ExPolygon(outline, hole) : ExPolygon(outline);
+            for (const int side : {-1, 1}) {
+                std::unique_ptr<Fill> fill(Fill::new_from_type("concentric"));
+                REQUIRE(fill != nullptr);
+                fill->angle = 0.0f;
+                fill->spacing = 1.0;
+                fill->loop_clipping = scale_(0.1);
+                fill->bounding_box = geometry.contour.bounding_box();
+
+                FillParams params;
+                params.density = 1.0f;
+                params.dont_adjust = true;
+                params.force_clockwise_concentric = true;
+                params.prefer_clockwise_movements = true;
+                params.concentric_seam_y_direction = side;
+
+                const Surface surface(surface_type, geometry);
+                const Polylines paths = fill->fill_surface(&surface, params);
+                REQUIRE_FALSE(paths.empty());
+
+                for (const Polyline &path : paths) {
+                    REQUIRE(path.points.size() >= 3);
+                    const BoundingBox bounds = path.bounding_box();
+                    const double mid_x = 0.5 * (double(bounds.min.x()) + double(bounds.max.x()));
+                    // The first point must be on the selected edge and near
+                    // the center of that edge, not an original corner vertex.
+                    CHECK(std::abs(double(path.first_point().x()) - mid_x) <= scale_(0.003));
+                    if (side > 0)
+                        CHECK(bounds.max.y() - path.first_point().y() <= scale_(0.003));
+                    else
+                        CHECK(path.first_point().y() - bounds.min.y() <= scale_(0.003));
+
+                    // A clipped loop still has a well-defined winding:
+                    // close the small seam gap for the signed area check.
+                    CHECK(Polygon::area(path.points) < 0.0);
+                }
+            }
+        }
+    }
+}
+
+
 
 #if 0
 TEST_CASE("Fill: adjusted solid distance") {
