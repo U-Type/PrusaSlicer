@@ -22,6 +22,47 @@ using namespace std::literals;
 
 bool test_if_solid_surface_filled(const ExPolygon& expolygon, double flow_spacing, double angle = 0, double density = 1.0);
 
+TEST_CASE("Concentric setting changes invalidate cached infill independently", "[Fill][Mod][Concentric]")
+{
+    DynamicPrintConfig config = DynamicPrintConfig::full_print_config();
+    config.set_deserialize_strict({
+        { "top_fill_pattern", "concentric" },
+        { "bottom_fill_pattern", "concentric" },
+        { "perimeter_generator", "arachne" },
+        { "seam_position", "rear" },
+        { "force_clockwise_perimeters", false }
+    });
+    Print print;
+    Model model;
+    Test::init_print({ Test::TestMesh::cube_20x20x20 }, print, model, config);
+    print.process();
+
+    // Toggle direction without changing the seam, then change the seam with
+    // clockwise both enabled and disabled. These used to re-export the old
+    // infill even though the exported configuration contained the new value.
+    const std::vector<std::pair<std::string, std::string>> changes = {
+        { "force_clockwise_perimeters", "1" },
+        { "seam_position", "front" },
+        { "force_clockwise_perimeters", "0" },
+        { "seam_position", "rear" },
+        { "seam_position", "nearest" }
+    };
+    for (const auto &change : changes) {
+        INFO(change.first << " = " << change.second);
+        REQUIRE(print.objects().front()->is_step_done(posInfill));
+        config.set_deserialize_strict(change.first, change.second);
+        print.apply(model, config);
+
+        const PrintObject &object = *print.objects().front();
+        CHECK(object.is_step_done(posSlice));
+        CHECK(object.is_step_done(posPerimeters));
+        CHECK(object.is_step_done(posPrepareInfill));
+        CHECK_FALSE(object.is_step_done(posInfill));
+        print.process();
+        REQUIRE(print.objects().front()->is_step_done(posInfill));
+    }
+}
+
 TEST_CASE("Concentric top and bottom seam projections stay aligned and clockwise", "[Fill][Mod][Concentric]") {
     // Square corners are deliberately far from the midpoint of each side:
     // the old nearest-vertex implementation selected a corner seam.
